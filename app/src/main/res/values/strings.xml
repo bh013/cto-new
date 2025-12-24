@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">MapLocator</string>
+    <string name="api_endpoint_hint">API Endpoint URL</string>
+    <string name="set_start">Set Start Location</string>
+    <string name="set_destination">Set Destination Location</string>
+    <string name="submit">Submit Locations</string>
+    <string name="status_ready">Tap \'Set Start\' or \'Set Destination\' then tap on the map</string>
+    <string name="status_select_start">Tap on the map to set start location</string>
+    <string name="status_select_destination">Tap on the map to set destination location</string>
+    <string name="status_start_set">Start location set</string>
+    <string name="status_destination_set">Destination location set</string>
+    <string name="status_submitting">Submitting data...</string>
+    <string name="status_success">Data submitted successfully!</string>
+    <string name="error_both_locations">Please set both start and destination locations</string>
+    <string name="error_api_endpoint">Please enter API endpoint URL</string>
+    <string name="error_network">Network error: %s</string>
+    <string name="start_label">Start</string>
+    <string name="dest_label">Dest</string>
+    <string name="start_coords">Start: Not set</string>
+    <string name="dest_coords">Dest: Not set</string>
+</resources>
