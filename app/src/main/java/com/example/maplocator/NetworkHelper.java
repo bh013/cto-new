@@ -21,25 +21,31 @@ public class NetworkHelper {
 
     public interface NetworkCallback {
         void onSuccess(String response);
+
         void onError(String error);
     }
 
-    public static class PostLocationTask extends AsyncTask<Void, Void, NetworkResult> {
-        
+    private static class NetworkResult {
+        final boolean success;
+        final String message;
+
+        NetworkResult(boolean success, String message) {
+            this.success = success;
+            this.message = message;
+        }
+    }
+
+    private static class JsonRequestTask extends AsyncTask<Void, Void, NetworkResult> {
+
         private final String apiUrl;
-        private final double startLat;
-        private final double startLng;
-        private final double destLat;
-        private final double destLng;
+        private final String method;
+        private final JSONObject jsonBody;
         private final NetworkCallback callback;
 
-        public PostLocationTask(String apiUrl, double startLat, double startLng, 
-                               double destLat, double destLng, NetworkCallback callback) {
+        JsonRequestTask(String apiUrl, String method, JSONObject jsonBody, NetworkCallback callback) {
             this.apiUrl = apiUrl;
-            this.startLat = startLat;
-            this.startLng = startLng;
-            this.destLat = destLat;
-            this.destLng = destLng;
+            this.method = method;
+            this.jsonBody = jsonBody;
             this.callback = callback;
         }
 
@@ -47,37 +53,37 @@ public class NetworkHelper {
         protected NetworkResult doInBackground(Void... voids) {
             HttpURLConnection connection = null;
             BufferedReader reader = null;
-            
+
             try {
-                JSONObject jsonBody = new JSONObject();
-                jsonBody.put("startLat", startLat);
-                jsonBody.put("startLng", startLng);
-                jsonBody.put("destLat", destLat);
-                jsonBody.put("destLng", destLng);
-                
-                String jsonString = jsonBody.toString();
+                String jsonString = jsonBody != null ? jsonBody.toString() : "";
                 Log.d(TAG, "Request URL: " + apiUrl);
-                Log.d(TAG, "Request Body: " + jsonString);
+                Log.d(TAG, "Request Method: " + method);
+                if (jsonBody != null) {
+                    Log.d(TAG, "Request Body: " + jsonString);
+                }
 
                 URL url = new URL(apiUrl);
                 connection = (HttpURLConnection) url.openConnection();
-                
-                connection.setRequestMethod("POST");
-                connection.setRequestProperty("Content-Type", "application/json");
+
+                connection.setRequestMethod(method);
                 connection.setRequestProperty("Accept", "application/json");
-                connection.setDoOutput(true);
-                connection.setDoInput(true);
                 connection.setConnectTimeout(TIMEOUT_MS);
                 connection.setReadTimeout(TIMEOUT_MS);
 
-                OutputStream outputStream = connection.getOutputStream();
-                BufferedWriter writer = new BufferedWriter(
-                    new OutputStreamWriter(outputStream, StandardCharsets.UTF_8)
-                );
-                writer.write(jsonString);
-                writer.flush();
-                writer.close();
-                outputStream.close();
+                if (jsonBody != null) {
+                    connection.setRequestProperty("Content-Type", "application/json");
+                    connection.setDoOutput(true);
+                    connection.setDoInput(true);
+
+                    OutputStream outputStream = connection.getOutputStream();
+                    BufferedWriter writer = new BufferedWriter(
+                        new OutputStreamWriter(outputStream, StandardCharsets.UTF_8)
+                    );
+                    writer.write(jsonString);
+                    writer.flush();
+                    writer.close();
+                    outputStream.close();
+                }
 
                 int responseCode = connection.getResponseCode();
                 Log.d(TAG, "Response Code: " + responseCode);
@@ -103,9 +109,9 @@ public class NetworkHelper {
 
                 if (responseCode >= 200 && responseCode < 300) {
                     return new NetworkResult(true, responseBody);
-                } else {
-                    return new NetworkResult(false, "HTTP " + responseCode + ": " + responseBody);
                 }
+
+                return new NetworkResult(false, "HTTP " + responseCode + ": " + responseBody);
 
             } catch (Exception e) {
                 Log.e(TAG, "Network error", e);
@@ -126,28 +132,79 @@ public class NetworkHelper {
 
         @Override
         protected void onPostExecute(NetworkResult result) {
-            if (callback != null) {
-                if (result.success) {
-                    callback.onSuccess(result.message);
-                } else {
-                    callback.onError(result.message);
-                }
+            if (callback == null) {
+                return;
+            }
+
+            if (result.success) {
+                callback.onSuccess(result.message);
+            } else {
+                callback.onError(result.message);
             }
         }
     }
 
-    private static class NetworkResult {
-        final boolean success;
-        final String message;
-
-        NetworkResult(boolean success, String message) {
-            this.success = success;
-            this.message = message;
-        }
+    private static void postJson(String apiUrl, JSONObject jsonBody, NetworkCallback callback) {
+        new JsonRequestTask(apiUrl, "POST", jsonBody, callback).executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
     }
 
     public static void postLocationData(String apiUrl, double startLat, double startLng,
-                                       double destLat, double destLng, NetworkCallback callback) {
-        new PostLocationTask(apiUrl, startLat, startLng, destLat, destLng, callback).execute();
+                                        double destLat, double destLng, NetworkCallback callback) {
+        try {
+            JSONObject jsonBody = new JSONObject();
+            jsonBody.put("startLat", startLat);
+            jsonBody.put("startLng", startLng);
+            jsonBody.put("destLat", destLat);
+            jsonBody.put("destLng", destLng);
+            postJson(apiUrl, jsonBody, callback);
+        } catch (Exception e) {
+            if (callback != null) {
+                callback.onError("Error: " + e.getMessage());
+            }
+        }
+    }
+
+    public static void postPriceConfirmation(String apiUrl, String requestId, NetworkCallback callback) {
+        try {
+            JSONObject jsonBody = new JSONObject();
+            if (requestId != null && !requestId.trim().isEmpty()) {
+                jsonBody.put("requestId", requestId);
+            }
+            jsonBody.put("confirmation", "yes");
+            postJson(apiUrl, jsonBody, callback);
+        } catch (Exception e) {
+            if (callback != null) {
+                callback.onError("Error: " + e.getMessage());
+            }
+        }
+    }
+
+    public static void pollDriverPosition(String apiUrl, String bookingId, NetworkCallback callback) {
+        try {
+            JSONObject jsonBody = new JSONObject();
+            if (bookingId != null && !bookingId.trim().isEmpty()) {
+                jsonBody.put("bookingId", bookingId);
+            }
+            postJson(apiUrl, jsonBody, callback);
+        } catch (Exception e) {
+            if (callback != null) {
+                callback.onError("Error: " + e.getMessage());
+            }
+        }
+    }
+
+    public static void cancelBooking(String apiUrl, String bookingId, NetworkCallback callback) {
+        try {
+            JSONObject jsonBody = new JSONObject();
+            if (bookingId != null && !bookingId.trim().isEmpty()) {
+                jsonBody.put("bookingId", bookingId);
+            }
+            jsonBody.put("cancel", true);
+            postJson(apiUrl, jsonBody, callback);
+        } catch (Exception e) {
+            if (callback != null) {
+                callback.onError("Error: " + e.getMessage());
+            }
+        }
     }
 }
