@@ -103,6 +103,26 @@ implementation 'org.osmdroid:osmdroid-android:6.1.17'
 - **Compile SDK**: 34
 - **Java**: 8
 
+## CI/CD & Releases
+
+This project includes **GitHub Actions workflows** for automated building and releasing:
+
+### 📦 Download APK
+- Go to **[Releases](../../releases)** to download the latest APK
+- Both debug and release versions available
+- Includes checksums for verification
+
+### 🔄 Automated Workflows
+- **Automatic builds** on push/pull requests
+- **GitHub Releases** on version tags
+- **Manual builds** on demand
+
+For more information:
+- **Quick Start**: [.github/workflows/QUICKSTART.md](.github/workflows/QUICKSTART.md)
+- **Release Guide**: [RELEASE_GUIDE.md](RELEASE_GUIDE.md)
+- **Full Documentation**: [.github/workflows/README.md](.github/workflows/README.md)
+- **CI/CD Setup**: [CI_CD_SETUP.md](CI_CD_SETUP.md)
+
 ## How to Use
 
 1. **Launch the app**
