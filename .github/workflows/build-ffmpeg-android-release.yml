@@ -1,0 +1,111 @@
+name: Build FFmpeg Android (armeabi-v7a)
+
+on:
+  push:
+    tags:
+      - 'ffmpeg-v*'
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Tag name for release (e.g., ffmpeg-v1.0.0)'
+        required: true
+        type: string
+
+jobs:
+  build-and-release:
+    name: Build and Release FFmpeg (armeabi-v7a)
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            autoconf \
+            automake \
+            cmake \
+            git \
+            libtool \
+            meson \
+            ninja-build \
+            pkg-config \
+            yasm \
+            nasm \
+            wget \
+            curl
+
+      - name: Download Android NDK r21e
+        run: |
+          NDK_ZIP="android-ndk-r21e-linux-x86_64.zip"
+          NDK_URL="https://dl.google.com/android/repository/${NDK_ZIP}"
+          mkdir -p "$HOME/android"
+          curl -L "${NDK_URL}" -o "$HOME/android/${NDK_ZIP}"
+          unzip -q "$HOME/android/${NDK_ZIP}" -d "$HOME/android"
+          echo "ANDROID_NDK_HOME=$HOME/android/android-ndk-r21e" >> $GITHUB_ENV
+
+      - name: Build FFmpeg static libraries
+        run: |
+          chmod +x scripts/build_android_armv7.sh
+          scripts/build_android_armv7.sh
+
+      - name: Package artifacts
+        run: |
+          OUTPUT_DIR="dist/ffmpeg/android/armeabi-v7a"
+          mkdir -p release-files
+          tar -czf release-files/ffmpeg-android-armeabi-v7a.tar.gz -C dist/ffmpeg/android armeabi-v7a
+          (cd dist/ffmpeg/android && zip -r "${GITHUB_WORKSPACE}/release-files/ffmpeg-android-armeabi-v7a.zip" armeabi-v7a)
+          sha256sum release-files/* > release-files/checksums.txt
+
+      - name: Resolve release tag
+        id: release_tag
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG_NAME="${{ github.event.inputs.tag_name }}"
+          else
+            TAG_NAME="${GITHUB_REF#refs/tags/}"
+          fi
+          echo "tag=${TAG_NAME}" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.release_tag.outputs.tag }}
+          name: FFmpeg Android ${{ steps.release_tag.outputs.tag }}
+          body: |
+            FFmpeg static build for Android (armeabi-v7a).
+
+            Included decoders: h264, hevc, libvpx_vp8, libvpx_vp9, libdav1d
+            Included encoder: libx264
+          files: |
+            release-files/ffmpeg-android-armeabi-v7a.tar.gz
+            release-files/ffmpeg-android-armeabi-v7a.zip
+            release-files/checksums.txt
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate build summary
+        if: always()
+        run: |
+          echo "## FFmpeg Android Release" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Tag:** ${{ steps.release_tag.outputs.tag }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Artifacts:**" >> $GITHUB_STEP_SUMMARY
+          if [ -f release-files/ffmpeg-android-armeabi-v7a.tar.gz ]; then
+            TAR_SIZE=$(du -h release-files/ffmpeg-android-armeabi-v7a.tar.gz | cut -f1)
+            echo "  - ffmpeg-android-armeabi-v7a.tar.gz (${TAR_SIZE})" >> $GITHUB_STEP_SUMMARY
+          fi
+          if [ -f release-files/ffmpeg-android-armeabi-v7a.zip ]; then
+            ZIP_SIZE=$(du -h release-files/ffmpeg-android-armeabi-v7a.zip | cut -f1)
+            echo "  - ffmpeg-android-armeabi-v7a.zip (${ZIP_SIZE})" >> $GITHUB_STEP_SUMMARY
+          fi
+          if [ -f release-files/checksums.txt ]; then
+            echo "  - checksums.txt" >> $GITHUB_STEP_SUMMARY
+          fi
