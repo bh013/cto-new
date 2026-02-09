@@ -219,6 +219,28 @@ To test without a real API:
 - Distance calculation
 - Custom marker icons
 
+## FFmpeg Android Static Build (armeabi-v7a)
+
+This repository includes a helper script to build a static FFmpeg bundle for Android using NDK r21e and API 24. The build is configured for nonfree licensing, ships only the requested decoders, and includes the libx264 encoder.
+
+### Included Codecs
+
+- **Decoders**: h264, hevc, libvpx_vp8, libvpx_vp9, libdav1d (AV1)
+- **Encoder**: libx264
+
+### Local Build
+
+```bash
+export ANDROID_NDK_HOME=/path/to/android-ndk-r21e
+scripts/build_android_armv7.sh
+```
+
+The output is placed in `dist/ffmpeg/android/armeabi-v7a`.
+
+### GitHub Release Workflow
+
+Tag a release with the `ffmpeg-v*` pattern (for example, `ffmpeg-v1.0.0`) to trigger the GitHub Actions workflow that builds and publishes the static artifacts.
+
 ## License
 
 This is a demonstration project created for educational purposes.
